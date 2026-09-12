@@ -132,7 +132,7 @@ class Config:
             )
             return
 
-        elif expected == "Literal":
+        elif expected == "literal":
             allowed_values = entry.get("possibleValues", [])
             if not allowed_values:
                 self._logger.warning(
