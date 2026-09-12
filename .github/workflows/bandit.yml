@@ -1,0 +1,59 @@
+name: Bandit
+
+on:
+  schedule:
+    # Monthly — 03:00 UTC on the 1st
+    - cron: '0 3 1 * *'
+  pull_request:
+    types: [closed]
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+    paths:
+      - "**/*.py"
+      - "**/*.pyw"
+      - "**/requirements.txt"
+      - "**/*.cfg"
+
+jobs:
+  bandit:
+    # Only run: on schedule, on any push matching the paths filter above,
+    # or on pull_request events that are actual merges (not just closes).
+    if: >
+      github.event_name == 'schedule' ||
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Bandit
+        run: pip install "bandit[sarif]"
+
+      - name: Run Bandit
+        run: |
+          bandit -r . \
+            -f sarif \
+            -o results.sarif \
+            --severity-level medium \
+            --confidence-level medium \
+            --exclude .svn,CVS,.bzr,.hg,.git,__pycache__,.tox,.eggs,*.egg,venv,.venv
+        continue-on-error: true  # never fail the build
+
+      - name: Upload SARIF file
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif
