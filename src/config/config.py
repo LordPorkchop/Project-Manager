@@ -34,11 +34,14 @@ class Config:
         self._avail = False
         self._locked = False
         self._changed = False
+
         if lock_file:
             self.lock_file()
 
         if parse_now:
             self.parse()
+
+        self._logger.debug("Config intialized")
 
     @property
     def available(self) -> bool:
@@ -78,7 +81,7 @@ class Config:
         try:
             allowed = entry["permissions"][requested_permission][scope]
         except (KeyError, TypeError):
-            err_str = f"Config entry '{name}' has corrupted metadata!"
+            err_str = f"Config entry '{name}' is corrupted"
             self._logger.error(err_str)
             if raise_errors:
                 raise MalformedConfigError(err_str) from None
@@ -111,6 +114,7 @@ class Config:
         self._logger.debug(
             f"Validating value of type {value_type_name} for config entry '{name}'"
         )
+
         if not entry:
             entry = self._get_entry(name) or {}
             if not entry:
@@ -120,12 +124,14 @@ class Config:
                 if raise_errors:
                     raise ValueError("Cannot validate a value against empty entry")
                 return
-        expected = entry.get("type", "NotProvided")  # None would be semi-valid
+
+        expected = entry.get("type", "NotProvided")  # type null in config is semi-valid
         if expected == "NotProvided":
             self._logger.warning(
                 f"Expected value type for entry '{name}' is not set, ignoring"
             )
             return
+
         elif expected == "Literal":
             allowed_values = entry.get("possibleValues", [])
             if not allowed_values:
@@ -141,6 +147,7 @@ class Config:
                     self._logger.error(err_str)
                     if raise_errors:
                         raise TypeError(err_str)
+
         else:
             match expected:
                 case "bool":
@@ -151,11 +158,17 @@ class Config:
                     expected_type = int
                 case "str":
                     expected_type = str
+                case "other":
+                    self._logger.warning(
+                        f"Expected value type for config entry '{name}' cannot be checked, skipping"
+                    )
+                    return
                 case _:
                     self._logger.warning(
                         f"Unknown expected type '{expected}' for config entry '{name}', ignoring"
                     )
                     return
+
             if not isinstance(write_value, expected_type):
                 err_str = f"Write value for config entry '{name}' must be '{expected_type.__name__}', not '{value_type_name}'"
                 self._logger.error(err_str)
@@ -166,8 +179,11 @@ class Config:
         self._scope = new_scope
 
     def read(self, config_key: str) -> Any:
+        if config_key == "metadata":
+            return self._get_entry(config_key, True)
+
         try:
-            # vvvvv Will never be None but raise AttributeError instead
+            # vvvvv Will never be None, raises AttributeError instead
             entry: dict[str, Any] = self._get_entry(config_key, True)  # type: ignore
             self._check_access(config_key, entry, self._scope, "read", True)
             return entry.get("currentValue")
@@ -175,6 +191,10 @@ class Config:
             self._logger.exception(f"Cannot read from '{config_key}':")
 
     def write(self, config_key: str, value: Any) -> None:
+        if config_key == "metadata":
+            self._logger.error("Cannot write to metadata!")
+            return
+
         try:
             entry: dict[str, Any] = self._get_entry(config_key, True)  # type: ignore
             self._check_access(config_key, entry, self._scope, "write", True)

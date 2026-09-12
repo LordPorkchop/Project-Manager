@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["metadata"],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "repo": { "type": "string", "format": "uri" }
+      },
+      "required": ["name", "version", "repo"],
+      "additionalProperties": false,
+      "readOnly": true
+    }
+  },
+  "patternProperties": {
+    "^(?!metadata$).+$": {
+      "$ref": "#/$defs/setting"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "permissions": {
+      "type": "object",
+      "properties": {
+        "read": { "$ref": "#/$defs/access" },
+        "write": { "$ref": "#/$defs/access" }
+      },
+      "required": ["read", "write"],
+      "additionalProperties": false
+    },
+    "access": {
+      "type": "object",
+      "properties": {
+        "user": { "type": "boolean" },
+        "app": { "type": "boolean" }
+      },
+      "required": ["user", "app"],
+      "additionalProperties": false
+    },
+    "settingMetadata": {
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "displayName": { "type": "string" },
+        "description": { "type": "string" },
+        "applicationRestartRequired": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "baseSetting": {
+      "type": "object",
+      "properties": {
+        "currentValue": {},
+        "defaultValue": {},
+        "type": {
+          "enum": ["bool", "float", "int", "literal", "str", "other"]
+        },
+        "permissions": { "$ref": "#/$defs/permissions" },
+        "metadata": { "$ref": "#/$defs/settingMetadata" }
+      },
+      "required": ["currentValue", "type", "permissions"],
+      "additionalProperties": false
+    },
+    "setting": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/baseSetting",
+          "properties": {
+            "type": { "const": "bool" },
+            "currentValue": { "type": "boolean" }
+          }
+        },
+        {
+          "$ref": "#/$defs/baseSetting",
+          "properties": {
+            "type": { "const": "float" },
+            "currentValue": { "type": "number" }
+          }
+        },
+        {
+          "$ref": "#/$defs/baseSetting",
+          "properties": {
+            "type": { "const": "int" },
+            "currentValue": { "type": "integer" }
+          }
+        },
+        {
+          "$ref": "#/$defs/baseSetting",
+          "properties": {
+            "type": { "const": "str" },
+            "currentValue": { "type": "string" }
+          }
+        },
+        {
+          "$ref": "#/$defs/baseSetting",
+          "properties": {
+            "type": { "const": "other" }
+          }
+        },
+        {
+          "$ref": "#/$defs/baseSetting",
+          "properties": {
+            "type": { "const": "literal" },
+            "possibleValues": {
+              "type": "array",
+              "minItems": 1
+            }
+          },
+          "required": ["possibleValues"]
+        }
+      ]
+    }
+  }
+}
