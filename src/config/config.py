@@ -31,6 +31,7 @@ class Config:
         self._logger = _get_logger("config")
         self._path = Path(path)
         self._config = {}
+        self._meta = {}
         self._avail = False
         self._locked = False
         self._changed = False
@@ -190,6 +191,24 @@ class Config:
         except Exception:
             self._logger.exception(f"Cannot read from '{config_key}':")
 
+    def get_metadata(self) -> dict[str, Any]:
+        return dict(self._meta)
+
+    def get_name(self) -> str:
+        return self._name
+
+    def get_version(self, verbose: bool = False):
+        if verbose:
+            return self._name + "Version" + self._version
+        else:
+            return self._version
+
+    def get_repository(self) -> str:
+        return self._repo_url
+
+    def get_author(self) -> str:
+        return self._author
+
     def write(self, config_key: str, value: Any) -> None:
         if config_key == "metadata":
             self._logger.error("Cannot write to metadata!")
@@ -213,9 +232,19 @@ class Config:
         try:
             with open(self._path, "r", encoding="utf-8") as file:
                 self._config: dict[str, dict] = json.load(file) or {}
+            self._meta: dict[str, str] = self._config["metadata"]
+            self._version = self._meta["version"]
+            self._name = self._meta["name"]
+            self._repo_url = self._meta["repo"]
+            self._author = self._meta["author"]
+
         except json.JSONDecodeError as e:
             self._logger.exception(f"Corrupted config file: {e}")
-            raise SystemExit
+            raise MalformedConfigError("Config file is corrupted, see log") from None
+
+        except KeyError:
+            raise MalformedConfigError("Config metadata is missing or incomplete")
+
         else:
             self._avail = bool(self._config)
 
